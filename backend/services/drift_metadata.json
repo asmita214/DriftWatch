@@ -1,0 +1,1 @@
+[{"drift_event_id": "test-event-001", "text": "Drift severity high. Drifted features: age, income, tenure_months, monthly_spend, confidence_score, device, prediction_output. ", "severity": "high", "drifted_features": ["age", "income", "tenure_months", "monthly_spend", "confidence_score", "device", "prediction_output"], "added_at": "2026-07-09T05:29:20.766433"}]
