@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from auth import get_current_user
 from pydantic import BaseModel
 from typing import Optional
 import sys
@@ -28,7 +29,7 @@ class SchemaInput(BaseModel):
 
 
 @router.post("/define")
-def define_schema(data: SchemaInput):
+def define_schema(data: SchemaInput, user_id: str = Depends(get_current_user)):
     """
     User defines what each feature means for their model.
     They provide thresholds and labels in their own domain language.
@@ -42,7 +43,7 @@ def define_schema(data: SchemaInput):
 
 
 @router.get("/{model_id}")
-def get_schema(model_id: str):
+def get_schema(model_id: str, user_id: str = Depends(get_current_user)):
     """
     Returns the feature schema for a model.
     """
@@ -56,7 +57,7 @@ def get_schema(model_id: str):
 
 
 @router.delete("/{model_id}")
-def remove_schema(model_id: str):
+def remove_schema(model_id: str, user_id: str = Depends(get_current_user)):
     """
     Deletes the schema for a model so user can redefine it.
     """

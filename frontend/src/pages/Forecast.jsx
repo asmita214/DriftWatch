@@ -110,10 +110,10 @@ const Forecast = () => {
               </div>
               {trend && <div style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 6, fontWeight: 500 }}>{trend}</div>}
               {criticalDay && (
-                <div style={{ fontSize: 14, color: 'var(--text-2)', fontWeight: 500 }}>
-                  Predicted to reach <span style={{ color: 'var(--red)', fontWeight: 700 }}>critical severity</span> on <span style={{ color: 'var(--text-1)', fontWeight: 800 }}>Day {criticalDay.day}</span> with score <span style={{ color: 'var(--red)', fontWeight: 800 }}>{criticalDay.severity?.toFixed(1)}</span>.
-                </div>
-              )}
+  <div style={{ fontSize: 14, color: 'var(--text-2)', fontWeight: 500 }}>
+    Predicted to reach <span style={{ color: 'var(--red)', fontWeight: 700 }}>critical severity</span> on <span style={{ color: 'var(--text-1)', fontWeight: 800 }}>{criticalDay.date || `Day ${forecast.indexOf(criticalDay) + 1}`}</span> with score <span style={{ color: 'var(--red)', fontWeight: 800 }}>{(criticalDay.predicted_severity || criticalDay.severity)?.toFixed(1)}</span>.
+  </div>
+)}
             </div>
           </div>
         )}
@@ -152,7 +152,7 @@ const Forecast = () => {
                   const isWarn = sev >= 50;
                   return (
                     <tr key={i} className={isCrit ? 'row-alert' : ''}>
-                      <td style={{ color: 'var(--text-1)', fontWeight: 700 }}>Day {r.day}</td>
+                      <td style={{ color: 'var(--text-1)', fontWeight: 700 }}>{r.date || `Day ${i + 1}`}</td>
                       <td style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 16, color: isCrit ? 'var(--red)' : isWarn ? 'var(--yellow)' : 'var(--text-1)' }}>
                         {sev.toFixed(1)}
                       </td>

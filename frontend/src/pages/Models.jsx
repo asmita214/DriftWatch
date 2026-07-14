@@ -1,15 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { Cpu, Plus, RefreshCw, AlertCircle, CheckCircle, Tag, Calendar } from 'lucide-react';
+import React, { useState } from 'react';
+import { Cpu, Plus, RefreshCw, AlertCircle, CheckCircle, Calendar, Trash2 } from 'lucide-react';
 import { useModel } from '../context/ModelContext';
-import { getModels, registerModel } from '../api/client';
-
+import { registerModel, deleteModel } from '../api/client';
+import { useNavigate } from 'react-router-dom';
 const Models = () => {
-  const { setModelId, setModelName } = useModel();
-  const [models, setModels] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { setModelId, setModelName, models, modelsLoading: loading, modelsError: error, refreshModels } = useModel();
+  const navigate = useNavigate();
 
-  // Form state
   const [showForm, setShowForm] = useState(false);
   const [fName, setFName] = useState('');
   const [fVersion, setFVersion] = useState('1.0');
@@ -17,20 +14,7 @@ const Models = () => {
   const [submitting, setSubmitting] = useState(false);
   const [formErr, setFormErr] = useState(null);
   const [formSucc, setFormSucc] = useState(false);
-
-  const load = async () => {
-    setLoading(true); setError(null);
-    try {
-      const res = await getModels();
-      setModels(Array.isArray(res.data) ? res.data : []);
-    } catch {
-      setError('Failed to load models.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { load(); }, []);
+  const [deletingId, setDeletingId] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,7 +31,8 @@ const Models = () => {
         setFormSucc(false);
         setShowForm(false);
         setFName(''); setFVersion('1.0'); setFDesc('');
-        load();
+        refreshModels();
+        navigate('/quickstart');
       }, 1500);
     } catch (err) {
       setFormErr(err.response?.data?.detail || 'Registration failed');
@@ -61,10 +46,23 @@ const Models = () => {
     setModelName(name);
   };
 
+  const handleDelete = async (id, name) => {
+    if (!window.confirm(`Delete model "${name}"? This cannot be undone.`)) return;
+    setDeletingId(id);
+    try {
+      await deleteModel(id);
+      refreshModels();
+    } catch {
+      alert('Failed to delete model.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="page">
       <div className="container" style={{ padding: '48px var(--page-x)' }}>
-        
+
         <div className="fade-up" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 48 }}>
           <div>
             <div className="eyebrow" style={{ marginBottom: 12 }}>Registry</div>
@@ -77,17 +75,17 @@ const Models = () => {
         </div>
 
         {error && (
-          <div className="fade-up" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderRadius: 12, border: '1px solid var(--red-border)', background: 'var(--red-dim)', marginBottom: 32, boxShadow: 'var(--shadow-sm)' }}>
+          <div className="fade-up" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderRadius: 12, border: '1px solid var(--red-border)', background: 'var(--red-dim)', marginBottom: 32 }}>
             <AlertCircle size={16} color="var(--red)" />
             <span style={{ fontSize: 14, color: 'var(--red)', flex: 1, fontWeight: 500 }}>{error}</span>
-            <button onClick={load} className="btn btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 12 }}>
+            <button onClick={refreshModels} className="btn btn-secondary" style={{ height: 32, padding: '0 12px', fontSize: 12 }}>
               <RefreshCw size={12} /> Retry
             </button>
           </div>
         )}
 
         {showForm && (
-          <div className="card fade-up" style={{ padding: '32px', marginBottom: 48, border: '2px solid var(--border-focus)', boxShadow: 'var(--shadow-md)' }}>
+          <div className="card fade-up" style={{ padding: '32px', marginBottom: 48, border: '2px solid var(--border-focus)' }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-1)', marginBottom: 24 }}>Register New Model</div>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div>
@@ -102,11 +100,17 @@ const Models = () => {
                 <label className="field-label">Description</label>
                 <textarea className="input" style={{ minHeight: 80, resize: 'vertical', padding: '12px 16px' }} placeholder="Brief description of what this model does..." value={fDesc} onChange={e => setFDesc(e.target.value)} />
               </div>
-
-              <div style={{ gridColumn: '1 / -1', marginTop: 16 }}>
-                {formErr && <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--red)', fontSize: 13, marginBottom: 16, fontWeight: 500 }}><AlertCircle size={14} /> {formErr}</div>}
-                {formSucc && <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--green)', fontSize: 13, marginBottom: 16, fontWeight: 500 }}><CheckCircle size={14} /> Successfully registered</div>}
-                
+              <div style={{ marginTop: 8 }}>
+                {formErr && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--red)', fontSize: 13, marginBottom: 16, fontWeight: 500 }}>
+                    <AlertCircle size={14} /> {formErr}
+                  </div>
+                )}
+                {formSucc && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--green)', fontSize: 13, marginBottom: 16, fontWeight: 500 }}>
+                    <CheckCircle size={14} /> Successfully registered
+                  </div>
+                )}
                 <button type="submit" disabled={submitting || formSucc} className="btn btn-primary" style={{ height: 44, padding: '0 32px' }}>
                   {submitting ? <><RefreshCw size={14} className="animate-spin" /> Registering...</> : 'Register'}
                 </button>
@@ -122,11 +126,13 @@ const Models = () => {
         ) : models.length > 0 ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 24 }}>
             {models.map((m, i) => {
+              const id = m.id;
               const name = m.model_name || 'Unknown Model';
               const version = m.model_version || '1.0';
               const desc = m.description || 'No description provided.';
+              const isDeleting = deletingId === id;
               return (
-                <div key={name} className="card card-hoverable fade-up" style={{ padding: '24px', animationDelay: `${i * 50}ms`, display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div key={id} className="card card-hoverable fade-up" style={{ padding: '24px', animationDelay: `${i * 50}ms`, display: 'flex', flexDirection: 'column', gap: 20, opacity: isDeleting ? 0.5 : 1, transition: 'opacity 0.2s' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                     <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--bg-raised)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)' }}>
                       <Cpu size={24} color="var(--primary)" />
@@ -141,13 +147,24 @@ const Models = () => {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-2)' }}>
-                      <Calendar size={14} color="var(--text-3)" /> <span style={{ fontWeight: 600 }}>Created:</span> {m.created_at ? new Date(m.created_at).toLocaleDateString() : '—'}
+                      <Calendar size={14} color="var(--text-3)" />
+                      <span style={{ fontWeight: 600 }}>Created:</span>
+                      {m.created_at ? new Date(m.created_at).toLocaleDateString() : '—'}
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', gap: 12 }}>
-                    <button onClick={() => selectModel(name, name)} className="btn btn-secondary" style={{ flex: 1 }}>
+                    <button onClick={() => selectModel(id, name)} className="btn btn-secondary" style={{ flex: 1 }}>
                       Select Model
+                    </button>
+                    <button
+                      onClick={() => handleDelete(id, name)}
+                      disabled={isDeleting}
+                      style={{ width: 40, height: 40, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: '1px solid var(--border)', cursor: 'pointer', color: 'var(--red)', transition: 'all 0.2s', flexShrink: 0 }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--red-dim)'; e.currentTarget.style.borderColor = 'var(--red)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+                    >
+                      {isDeleting ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
                     </button>
                   </div>
                 </div>

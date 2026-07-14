@@ -8,7 +8,7 @@ const SHAPBarChart = ({ data = [] }) => {
 
   const chart = data.map(f => ({
     feature: f.feature || f.name || '?',
-    value: Math.abs(f.contribution || f.shap_value || 0),
+    value: Math.abs(f.contribution_percentage || f.contribution || f.shap_value || 0),
   }));
 
   return (

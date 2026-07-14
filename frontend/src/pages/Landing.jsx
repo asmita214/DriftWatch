@@ -160,11 +160,11 @@ const Landing = () => {
               </p>
 
               <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
-                <Link to="/dashboard" className="btn btn-primary" style={{ height: 52, padding: '0 32px', fontSize: 16, borderRadius: 10 }}>
-                  Open Dashboard <ArrowRight className="arrow-icon" size={18} />
+                <Link to="/signup" className="btn btn-primary" style={{ height: 52, padding: '0 32px', fontSize: 16, borderRadius: 10 }}>
+                  Get Started Free <ArrowRight className="arrow-icon" size={18} />
                 </Link>
-                <Link to="/drift" className="btn btn-secondary" style={{ height: 52, padding: '0 32px', fontSize: 16, borderRadius: 10 }}>
-                  View Analysis
+                <Link to="/login" className="btn btn-secondary" style={{ height: 52, padding: '0 32px', fontSize: 16, borderRadius: 10 }}>
+                  Sign In
                 </Link>
               </div>
 
@@ -365,8 +365,8 @@ const Landing = () => {
           <p style={{ fontSize: 18, color: 'var(--text-3)', lineHeight: 1.7, marginBottom: 40, padding: '0 20px' }}>
             No alert. No dashboard warning. Just quietly degraded predictions until a customer complains or an audit surfaces the problem. The average team takes 4–6 weeks to diagnose what DriftWatch surfaces in minutes.
           </p>
-          <Link to="/dashboard" className="btn btn-primary pulse-glow" style={{ height: 56, fontSize: 16, padding: '0 32px', borderRadius: 12 }}>
-            View Your Models <ArrowRight size={18} />
+          <Link to="/signup" className="btn btn-primary pulse-glow" style={{ height: 56, fontSize: 16, padding: '0 32px', borderRadius: 12 }}>
+            Start Monitoring Free <ArrowRight size={18} />
           </Link>
         </div>
       </section>

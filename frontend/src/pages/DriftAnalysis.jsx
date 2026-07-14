@@ -63,18 +63,36 @@ const DriftAnalysis = () => {
     </div>
   );
 
-  const features = Array.isArray(analysis?.features) ? analysis.features : Array.isArray(analysis?.drift_results) ? analysis.drift_results : [];
-  const shapFeatures = Array.isArray(shap?.features) ? shap.features : Array.isArray(shap) ? shap : [];
+  const numericalDrift = analysis?.numerical_drift || {};
+const categoricalDrift = analysis?.categorical_drift || {};
+const features = [
+  ...Object.entries(numericalDrift).map(([name, v]) => ({
+    feature: name,
+    psi_score: v.psi,
+    ks_statistic: v.ks_statistic,
+    ks_pvalue: v.ks_p_value,
+    drifted: v.drifted
+  })),
+  ...Object.entries(categoricalDrift).map(([name, v]) => ({
+    feature: name,
+    psi_score: null,
+    ks_statistic: v.chi_squared_statistic,
+    ks_pvalue: v.chi_p_value,
+    drifted: v.drifted
+  }))
+];
+  const shapFeatures = shap?.feature_importance_ranking || [];
   const clusterList = Array.isArray(clusters?.clusters) ? clusters.clusters : Array.isArray(clusters) ? clusters : [];
   const similarList = Array.isArray(similar) ? similar : (similar?.similar_events || []);
 
+  const featureContext = shap?.feature_context || {};
   const shapChartData = shapFeatures.map(f => ({
-    feature: f.feature || f.name,
-    contribution: f.contribution || f.shap_value || 0,
-    baseline: f.baseline_mean ?? f.baseline_avg,
-    current: f.current_mean ?? f.current_avg,
+    feature: f.feature,
+    contribution: f.contribution_percentage || 0,
+    baseline: featureContext[f.feature]?.baseline_avg,
+    current: featureContext[f.feature]?.current_avg,
   }));
-  const shapExplanation = shap?.explanation || shap?.summary || '';
+  const shapExplanation = shap?.plain_english_explanation || '';
 
   return (
     <div className="page">
@@ -241,7 +259,7 @@ const DriftAnalysis = () => {
           ) : similarList.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
               {similarList.map((evt, i) => {
-                const simPct = ((evt.similarity_score || evt.similarity || 0) * 100).toFixed(0);
+                const simPct = (evt.similarity_percentage || evt.similarity_score || 0).toFixed(0);
                 return (
                   <div key={i} className="card card-hoverable fade-up" style={{ padding: '24px 32px', display: 'flex', alignItems: 'flex-start', gap: 32, animationDelay: `${i * 100}ms` }}>
                     <div style={{ textAlign: 'center', minWidth: 80 }}>
@@ -254,9 +272,9 @@ const DriftAnalysis = () => {
                         <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-1)' }}>{evt.event_id || `Event ${i + 1}`}</span>
                         {evt.timestamp && <span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 500 }}>{new Date(evt.timestamp).toLocaleDateString()}</span>}
                       </div>
-                      {evt.affected_features && (
+                      {evt.drifted_features && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                          {(evt.affected_features || []).map((f, j) => <span key={j} className="badge badge-neutral">{f}</span>)}
+                          {(evt.drifted_features || []).map((f, j) => <span key={j} className="badge badge-neutral">{f}</span>)}
                         </div>
                       )}
                       {evt.recommendation && <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7, marginTop: 8, fontWeight: 500 }}>{evt.recommendation}</p>}

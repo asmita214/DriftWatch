@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from auth import get_current_user
 import sys
 import os
 
@@ -15,7 +16,7 @@ router = APIRouter()
 
 
 @router.get("/analyze/{model_id}")
-def analyze_drift(model_id: str):
+def analyze_drift(model_id: str, user_id: str = Depends(get_current_user)):
     """
     Main drift analysis endpoint.
     Call this with a model_id and it returns the full drift report.
@@ -28,7 +29,7 @@ def analyze_drift(model_id: str):
 
 
 @router.get("/summary/{model_id}")
-def drift_summary(model_id: str):
+def drift_summary(model_id: str, user_id: str = Depends(get_current_user)):
     """
     Returns a simple plain English summary of drift status.
     Good for dashboard header cards.
@@ -59,7 +60,7 @@ def drift_summary(model_id: str):
 
 
 @router.get("/shap/{model_id}")
-def get_shap_analysis(model_id: str):
+def get_shap_analysis(model_id: str, user_id: str = Depends(get_current_user)):
     """
     Returns SHAP-based feature importance.
     Tells you exactly which features are causing the drift
@@ -72,7 +73,7 @@ def get_shap_analysis(model_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/clusters/{model_id}")
-def get_clusters(model_id: str):
+def get_clusters(model_id: str, user_id: str = Depends(get_current_user)):
     """
     Returns HDBSCAN cluster analysis of drifted data.
     Tells you what new types of users appeared in your model's traffic.
@@ -84,7 +85,7 @@ def get_clusters(model_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/index/{model_id}")
-def index_drift_event(model_id: str, drift_event_id: str):
+def index_drift_event(model_id: str, drift_event_id: str, user_id: str = Depends(get_current_user)):
     """
     Adds the current drift state of a model to the FAISS memory index.
     Call this after confirming a drift event is real.
@@ -101,7 +102,7 @@ def index_drift_event(model_id: str, drift_event_id: str):
 
 
 @router.get("/similar/{model_id}")
-def find_similar(model_id: str):
+def find_similar(model_id: str, user_id: str = Depends(get_current_user)):
     """
     Searches FAISS memory for past drift events similar to the current one.
     Returns similarity scores and recommendations based on past events.
@@ -113,7 +114,7 @@ def find_similar(model_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 @router.get("/severity/{model_id}")
-def get_severity_score(model_id: str):
+def get_severity_score(model_id: str, user_id: str = Depends(get_current_user)):
     """
     Returns XGBoost-powered severity score for current drift state.
     Score is 0-100 with label and recommended action.

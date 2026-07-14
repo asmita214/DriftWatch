@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, RefreshCw, TrendingUp } from 'lucide-react';
 import { useModel } from '../context/ModelContext';
-import { getSeverity, getDriftSummary, getSHAPData, getClusters, getSimilarEvents, getForecast } from '../api/client';
+import { getSeverity, getDriftSummary, getSHAPData, getClusters, getSimilarEvents, getForecast, getDriftAnalysis } from '../api/client';
+
 import SeverityGauge from '../components/SeverityGauge';
 import SHAPBarChart from '../components/SHAPBarChart';
 import StatCard from '../components/StatCard';
 import StatusBanner from '../components/StatusBanner';
 
 const Dashboard = () => {
-  const { modelId } = useModel();
+  const { modelId, modelName, models } = useModel();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [d, setD] = useState({ sev: null, sum: null, shap: null, clusters: null, similar: null, forecast: null });
@@ -16,9 +17,9 @@ const Dashboard = () => {
   const load = async () => {
     if (!modelId) return;
     setLoading(true); setError(null);
-    const [sev, sum, shap, clust, sim, fore] = await Promise.allSettled([
+    const [sev, sum, shap, clust, sim, fore,drift] = await Promise.allSettled([
       getSeverity(modelId), getDriftSummary(modelId), getSHAPData(modelId),
-      getClusters(modelId), getSimilarEvents(modelId), getForecast(modelId),
+      getClusters(modelId), getSimilarEvents(modelId), getForecast(modelId),getDriftAnalysis(modelId),
     ]);
     setD({
       sev:      sev.status   === 'fulfilled' ? sev.value.data   : null,
@@ -27,6 +28,7 @@ const Dashboard = () => {
       clusters: clust.status === 'fulfilled' ? clust.value.data : null,
       similar:  sim.status   === 'fulfilled' ? sim.value.data   : null,
       forecast: fore.status  === 'fulfilled' ? fore.value.data  : null,
+      drift:    drift.status === 'fulfilled' ? drift.value.data : null,
     });
     setLoading(false);
   };
@@ -43,14 +45,14 @@ const Dashboard = () => {
   );
 
   const score     = d.sev?.severity_score ?? d.sev?.score ?? 0;
-  const summary   = d.sum?.summary || d.sum?.plain_english || '';
-  const shaps     = Array.isArray(d.shap?.features) ? d.shap.features : Array.isArray(d.shap) ? d.shap : [];
+  const summary = d.sum?.message || d.sum?.summary || '';
+  const shaps = d.shap?.feature_importance_ranking || d.shap?.features || [];
   const clusters  = Array.isArray(d.clusters?.clusters) ? d.clusters.clusters : Array.isArray(d.clusters) ? d.clusters : [];
   const simList   = Array.isArray(d.similar) ? d.similar : (d.similar?.similar_events || []);
   const foreArr   = Array.isArray(d.forecast?.forecast) ? d.forecast.forecast : Array.isArray(d.forecast) ? d.forecast : [];
   const critDay   = foreArr.find(x => x.severity >= 75);
   const topFeature = shaps[0]?.feature || shaps[0]?.name || '—';
-  const drifted   = shaps.filter(f => f.drifted || f.is_drifted).length || Math.ceil(shaps.length * 0.4);
+  const drifted = d.drift?.drifted_features?.length ?? shaps.filter(f => f.drifted).length;
   const isDrift   = score >= 40;
 
   return (
@@ -74,15 +76,91 @@ const Dashboard = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
             {/* Gauge card */}
-            <div className="card fade-up d1" style={{ padding: '48px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ fontSize: 12, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 32 }}>Current Severity</div>
-              <SeverityGauge value={score} size={300} />
-              {summary && (
-                <p style={{ fontSize: 15, color: 'var(--text-2)', textAlign: 'center', marginTop: 24, maxWidth: 540, lineHeight: 1.7, fontWeight: 500 }}>
-                  {summary.slice(0, 200)}
-                </p>
-              )}
-            </div>
+            <div className="card fade-up d1" style={{ padding: '40px 32px', minHeight: 430, overflow: 'hidden', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 32 }}>
+  
+  {/* Left side info */}
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div>
+      <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 8 }}>Model</div>
+      <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-1)' }}>{modelName || 'Unknown Model'}</div>
+<div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>
+  {models?.find(m => m.id === modelId)?.model_version ? `v${models.find(m => m.id === modelId).model_version} · Production` : 'Production'}
+</div>
+    </div>
+
+    <div style={{ width: '100%', height: 1, background: 'var(--border)' }} />
+
+    <div>
+      <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 12 }}>Drift Breakdown</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {(d.drift?.drifted_features || []).slice(0, 4).map((f, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--red)', flexShrink: 0 }} />
+            <span style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 600, fontFamily: 'monospace' }}>{f}</span>
+          </div>
+        ))}
+        {(d.drift?.drifted_features || []).length > 4 && (
+          <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 500 }}>+{(d.drift?.drifted_features || []).length - 4} more features</div>
+        )}
+      </div>
+    </div>
+
+    <div style={{ width: '100%', height: 1, background: 'var(--border)' }} />
+
+    <div>
+      <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 8 }}>Detected</div>
+      <div style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 600 }}>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+      <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+    </div>
+  </div>
+
+  {/* Center gauge */}
+  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 24 }}>Current Severity</div>
+    <SeverityGauge value={score} size={270} />
+  </div>
+
+  {/* Right side info */}
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div>
+      <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 8 }}>Severity Level</div>
+      <div style={{ fontSize: 28, fontWeight: 900, color: score >= 75 ? 'var(--red)' : score >= 40 ? 'var(--yellow)' : 'var(--green)' }}>
+        {score >= 75 ? 'CRITICAL' : score >= 40 ? 'WARNING' : 'HEALTHY'}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>
+        {score >= 75 ? 'Immediate action required' : score >= 40 ? 'Monitor closely' : 'All systems normal'}
+      </div>
+    </div>
+
+    <div style={{ width: '100%', height: 1, background: 'var(--border)' }} />
+
+    <div>
+      <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 12 }}>Score Breakdown</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {[
+          { label: 'Features Drifted', value: `${drifted}/7`, color: 'var(--red)' },
+          { label: 'New Segments', value: clusters.length, color: 'var(--yellow)' },
+          { label: 'Top Culprit', value: topFeature, color: 'var(--text-1)' },
+        ].map((item, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 500 }}>{item.label}</span>
+            <span style={{ fontSize: 13, color: item.color, fontWeight: 700, fontFamily: 'monospace' }}>{item.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <div style={{ width: '100%', height: 1, background: 'var(--border)' }} />
+
+    <div>
+      <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 8 }}>Recommendation</div>
+      <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, fontWeight: 500 }}>
+        {score >= 75 ? 'Retrain model immediately using recent data. Focus on drifted features.' : score >= 40 ? 'Schedule retraining within 2 weeks.' : 'No action required. Continue monitoring.'}
+      </div>
+    </div>
+  </div>
+
+</div>
 
             {/* 4 stats */}
             <div className="fade-up d2" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
@@ -148,7 +226,7 @@ const Dashboard = () => {
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                         <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)' }}>{simList[0].event_id || 'Past Event'}</span>
                         <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-1)' }}>
-                          {((simList[0].similarity_score || simList[0].similarity || 0) * 100).toFixed(0)}%
+                          {(simList[0].similarity_percentage || simList[0].similarity_score || 0).toFixed(0)}%
                         </span>
                       </div>
                       {simList[0].recommendation && (
@@ -168,7 +246,7 @@ const Dashboard = () => {
                 ? <div style={{ padding: '16px 24px' }}>{[...Array(3)].map((_, i) => <div key={i} className="skeleton" style={{ height: 32, marginBottom: 12 }} />)}</div>
                 : clusters.length
                   ? clusters.slice(0, 5).map((c, i) => {
-                      const pct = c.drift_percentage || c.drifted_percentage || 0;
+                      const pct = c.percentage_of_drifted_data || c.drift_percentage || 0;
                       const pctColor = pct > 50 ? 'var(--red)' : pct > 25 ? 'var(--yellow)' : 'var(--green)';
                       return (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', borderBottom: i < clusters.length - 1 ? '1px solid var(--border)' : 'none' }}>

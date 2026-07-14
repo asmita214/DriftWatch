@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from auth import get_current_user
 import sys
 import os
 
@@ -9,7 +10,7 @@ router = APIRouter()
 
 
 @router.get("/predict/{model_id}")
-def get_forecast(model_id: str, days: int = 14):
+def get_forecast(model_id: str, days: int = 14, user_id: str = Depends(get_current_user)):
     """
     Forecasts drift severity for the next N days using Prophet.
     Returns day-by-day predictions with confidence intervals
@@ -23,7 +24,7 @@ def get_forecast(model_id: str, days: int = 14):
 
 
 @router.post("/generate-history/{model_id}")
-def generate_history(model_id: str, days: int = 30):
+def generate_history(model_id: str, days: int = 30, user_id: str = Depends(get_current_user)):
     """
     Generates synthetic drift history for a model.
     Call this once to give Prophet enough data to forecast from.

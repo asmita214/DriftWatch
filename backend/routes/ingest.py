@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
@@ -7,30 +7,30 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db.supabase_client import supabase
+from auth import get_current_user
 
 router = APIRouter()
 
-# This defines exactly what shape of data we accept
+
 class PredictionLog(BaseModel):
     model_id: str
-    input_features: dict        # the inputs your model received
-    prediction_output: str      # what your model predicted
-    confidence_score: Optional[float] = None   # how confident the model was
-    metadata: Optional[dict] = None            # any extra info
+    input_features: dict
+    prediction_output: str
+    confidence_score: Optional[float] = None
+    metadata: Optional[dict] = None
+
 
 class ModelRegister(BaseModel):
-    user_id: str
     model_name: str
     model_version: Optional[str] = "1.0"
     description: Optional[str] = None
 
 
-# Route 1 — register a new model
 @router.post("/register-model")
-def register_model(data: ModelRegister):
+def register_model(data: ModelRegister, user_id: str = Depends(get_current_user)):
     try:
         result = supabase.table("models").insert({
-            "user_id": data.user_id,
+            "user_id": user_id,
             "model_name": data.model_name,
             "model_version": data.model_version,
             "description": data.description
@@ -44,9 +44,8 @@ def register_model(data: ModelRegister):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Route 2 — log a single prediction
 @router.post("/log-prediction")
-def log_prediction(data: PredictionLog):
+def log_prediction(data: PredictionLog, user_id: str = Depends(get_current_user)):
     try:
         result = supabase.table("prediction_logs").insert({
             "model_id": data.model_id,
@@ -65,9 +64,8 @@ def log_prediction(data: PredictionLog):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Route 3 — log predictions in bulk (for batch models)
 @router.post("/log-batch")
-def log_batch(model_id: str, predictions: list[PredictionLog]):
+def log_batch(model_id: str, predictions: list[PredictionLog], user_id: str = Depends(get_current_user)):
     try:
         rows = [{
             "model_id": model_id,
@@ -78,32 +76,26 @@ def log_batch(model_id: str, predictions: list[PredictionLog]):
             "metadata": p.metadata
         } for p in predictions]
 
-        result = supabase.table("prediction_logs").insert(rows).execute()
-
-        return {
-            "message": f"{len(rows)} predictions logged successfully"
-        }
+        supabase.table("prediction_logs").insert(rows).execute()
+        return {"message": f"{len(rows)} predictions logged successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Route 4 — fetch all models for a user
-@router.get("/models/{user_id}")
-def get_models(user_id: str):
+@router.get("/models")
+def get_models(user_id: str = Depends(get_current_user)):
     try:
         result = supabase.table("models")\
             .select("*")\
             .eq("user_id", user_id)\
             .execute()
-
         return {"models": result.data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Route 5 — fetch prediction logs for a model
 @router.get("/logs/{model_id}")
-def get_logs(model_id: str, limit: int = 100):
+def get_logs(model_id: str, limit: int = 100, user_id: str = Depends(get_current_user)):
     try:
         result = supabase.table("prediction_logs")\
             .select("*")\
@@ -111,7 +103,19 @@ def get_logs(model_id: str, limit: int = 100):
             .order("timestamp", desc=True)\
             .limit(limit)\
             .execute()
-
         return {"logs": result.data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/models/{model_id}")
+def delete_model(model_id: str, user_id: str = Depends(get_current_user)):
+    try:
+        supabase.table("models")\
+            .delete()\
+            .eq("id", model_id)\
+            .eq("user_id", user_id)\
+            .execute()
+        return {"message": "Model deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
