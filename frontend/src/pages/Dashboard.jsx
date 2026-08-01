@@ -1,12 +1,106 @@
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, RefreshCw, TrendingUp } from 'lucide-react';
 import { useModel } from '../context/ModelContext';
-import { getSeverity, getDriftSummary, getSHAPData, getClusters, getSimilarEvents, getForecast, getDriftAnalysis } from '../api/client';
+import client,{ getSeverity, getDriftSummary, getSHAPData, getClusters, getSimilarEvents, getForecast, getDriftAnalysis } from '../api/client';
 
 import SeverityGauge from '../components/SeverityGauge';
 import SHAPBarChart from '../components/SHAPBarChart';
 import StatCard from '../components/StatCard';
 import StatusBanner from '../components/StatusBanner';
+
+const DemoView = () => {
+  const [d, setD] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      const [sev, sum, shap, clust] = await Promise.allSettled([
+        client.get('/api/drift/demo/severity'),
+        client.get('/api/drift/demo/summary'),
+        client.get('/api/drift/demo/shap'),
+        client.get('/api/drift/demo/clusters'),
+      ]);
+      setD({
+        sev: sev.status === 'fulfilled' ? sev.value.data : null,
+        sum: sum.status === 'fulfilled' ? sum.value.data : null,
+        shap: shap.status === 'fulfilled' ? shap.value.data : null,
+        clusters: clust.status === 'fulfilled' ? clust.value.data : null,
+      });
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const score = d.sev?.severity_score || 0;
+  const shapFeatures = d.shap?.feature_importance_ranking || [];
+  const clusters = d.clusters?.clusters || [];
+  const drifted = d.sum?.drifted_features?.length || 0;
+  const topFeature = shapFeatures[0]?.feature || '—';
+
+  return (
+    <div className="page">
+      <div style={{ background: 'var(--yellow-dim)', borderBottom: '1px solid var(--yellow)', padding: '12px 32px', fontSize: 13, fontWeight: 600, color: 'var(--yellow)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        👁 You are viewing the live demo model — register your own model to start monitoring it
+      </div>
+      <div className="container" style={{ padding: '32px var(--page-x)' }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 80, color: 'var(--text-3)' }}>Loading demo data...</div>
+        ) : (
+          <>
+            <div style={{ marginBottom: 24 }}>
+              <div className="eyebrow" style={{ marginBottom: 8 }}>Live Demo</div>
+              <h1 className="page-title">churn_predictor</h1>
+              <div className="page-sub">Customer churn prediction model — live drift analysis</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 32, marginBottom: 32 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div className="card" style={{ padding: 24 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Status</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: score >= 75 ? 'var(--red)' : score >= 40 ? 'var(--yellow)' : 'var(--green)' }}>
+                    {score >= 75 ? 'CRITICAL' : score >= 40 ? 'WARNING' : 'HEALTHY'}
+                  </div>
+                </div>
+                <div className="card" style={{ padding: 24 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Features Drifted</div>
+                  <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--text-1)' }}>{drifted}<span style={{ fontSize: 14, color: 'var(--text-3)', fontWeight: 500 }}>/7</span></div>
+                </div>
+                <div className="card" style={{ padding: 24 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Top Culprit</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--primary)', fontFamily: 'monospace' }}>{topFeature}</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <SeverityGauge value={score} size={260} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div className="card" style={{ padding: 24 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>Top SHAP Features</div>
+                  {shapFeatures.slice(0, 4).map((f, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0 }} />
+                      <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--text-2)', flex: 1 }}>{f.feature}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)' }}>{f.contribution_percentage?.toFixed(1)}%</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="card" style={{ padding: 24 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>New Segments Found</div>
+                  <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--text-1)' }}>{clusters.length}</div>
+                  {clusters[0] && <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8, lineHeight: 1.5 }}>{clusters[0].plain_english_description}</div>}
+                </div>
+              </div>
+            </div>
+            <div className="card" style={{ padding: '20px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 14, color: 'var(--text-2)', fontWeight: 500 }}>Ready to monitor your own model?</div>
+              <a href="/models" className="btn btn-primary" style={{ height: 40, padding: '0 20px', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>Register Your Model</a>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
 
 const Dashboard = () => {
   const { modelId, modelName, models } = useModel();
@@ -35,14 +129,9 @@ const Dashboard = () => {
 
   useEffect(() => { load(); }, [modelId]);
 
-  if (!modelId) return (
-    <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>Select a model to view the dashboard</div>
-        <div style={{ fontSize: 14, color: 'var(--text-3)', marginTop: 8 }}>Use the model selector in the navbar</div>
-      </div>
-    </div>
-  );
+  if (!modelId) {
+  return <DemoView />;
+}
 
   const score     = d.sev?.severity_score ?? d.sev?.score ?? 0;
   const summary = d.sum?.message || d.sum?.summary || '';

@@ -155,3 +155,59 @@ def get_severity_score(model_id: str, user_id: str = Depends(get_current_user)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@router.get("/demo/analyze")
+def demo_analyze():
+    try:
+        return detect_drift("5270bb9f-6022-4295-9ddb-97a3f14a8302")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/demo/severity")
+def demo_severity():
+    try:
+        from services.shap_analyzer import run_shap_analysis
+        from services.clustering import run_clustering
+        from services.faiss_search import find_similar_drift_events
+        from services.severity_scorer import score_drift_event
+        model_id = "5270bb9f-6022-4295-9ddb-97a3f14a8302"
+        drift_report = detect_drift(model_id)
+        if not drift_report.get("drift_detected"):
+            return {"severity_score": 0, "severity_label": "none", "severity_message": "No drift detected."}
+        shap_report = run_shap_analysis(model_id)
+        cluster_report = run_clustering(model_id)
+        similar_report = find_similar_drift_events(drift_report)
+        logs = supabase.table("prediction_logs").select("confidence_score").eq("model_id", model_id).limit(200).execute()
+        return score_drift_event(drift_report, shap_report, cluster_report, similar_report, logs.data or [])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/demo/shap")
+def demo_shap():
+    try:
+        from services.shap_analyzer import run_shap_analysis
+        return run_shap_analysis("5270bb9f-6022-4295-9ddb-97a3f14a8302")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/demo/clusters")
+def demo_clusters():
+    try:
+        from services.clustering import run_clustering
+        return run_clustering("5270bb9f-6022-4295-9ddb-97a3f14a8302")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/demo/summary")
+def demo_summary():
+    try:
+        report = detect_drift("5270bb9f-6022-4295-9ddb-97a3f14a8302")
+        if not report.get("drift_detected"):
+            return {"status": "healthy", "message": "Demo model stable.", "severity": "none", "drifted_features": []}
+        return {
+            "status": "drifting",
+            "message": f"Drift detected in {len(report['drifted_features'])} features: {', '.join(report['drifted_features'])}",
+            "severity": report["overall_severity"],
+            "drifted_features": report["drifted_features"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
