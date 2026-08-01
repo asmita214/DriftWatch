@@ -119,3 +119,17 @@ def delete_model(model_id: str, user_id: str = Depends(get_current_user)):
         return {"message": "Model deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@router.get("/demo-model")
+def get_demo_model():
+    """
+    Returns the public demo model that anyone can view
+    without being logged in.
+    """
+    try:
+        result = supabase.table("models")\
+            .select("*")\
+            .eq("id", "5270bb9f-6022-4295-9ddb-97a3f14a8302")\
+            .execute()
+        return {"model": result.data[0] if result.data else None}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
