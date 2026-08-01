@@ -15,7 +15,7 @@ app = FastAPI(title="DriftWatch API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "https://driftwatch-production-b522.up.railway.app"],
+    allow_origins=["http://localhost:5173", "https://driftwatch-production-b522.up.railway.app", "https://drift-watch-ten.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
