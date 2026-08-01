@@ -456,6 +456,4 @@ Built as a production-grade portfolio project targeting Data Science and ML inte
 
 ---
 
-## License
 
-MIT License — free to use, modify, and distribute.
