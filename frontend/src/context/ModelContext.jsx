@@ -11,32 +11,41 @@ export const ModelProvider = ({ children }) => {
   const [modelsError, setModelsError] = useState(null);
 
   const refreshModels = async () => {
-    setModelsLoading(true); setModelsError(null);
-    try {
-      const res = await getModels();
-      const list = Array.isArray(res.data) ? res.data : (res.data?.models || []);
-      setModels(list);
-if (list.length === 0) {
-  // no models yet — add demo model to selector
-  const demoRes = await import('../api/client').then(m => m.getDemoModel());
-  const demoModel = demoRes.data?.model;
-  if (demoModel) {
-    setModels([{ ...demoModel, is_demo: true, model_name: 'churn_predictor (demo)' }]);
-    setModelId(demoModel.id);
-    setModelName('churn_predictor (demo)');
-  }
-}
-      // Automatically select first model if none selected
-      if (list.length > 0 && !modelId) {
-        setModelId(list[0].id);
-        setModelName(list[0].model_name);
-      }
-    } catch (err) {
-      setModelsError('Failed to load models.');
-    } finally {
-      setModelsLoading(false);
+  setModelsLoading(true); setModelsError(null);
+  let list = [];
+  try {
+    const res = await getModels();
+    list = Array.isArray(res.data) ? res.data : (res.data?.models || []);
+    setModels(list);
+    if (list.length > 0 && !modelId) {
+      setModelId(list[0].id);
+      setModelName(list[0].model_name);
     }
-  };
+  } catch (err) {
+    // auth failed or no models — still try to show demo
+    list = [];
+  }
+
+  // show demo model if user has no models
+  if (list.length === 0) {
+    try {
+      const { getDemoModel } = await import('../api/client');
+      const demoRes = await getDemoModel();
+      const demoModel = demoRes.data?.model;
+      if (demoModel) {
+        setModels([{ ...demoModel, is_demo: true, model_name: 'churn_predictor (demo)' }]);
+        if (!modelId) {
+          setModelId(demoModel.id);
+          setModelName('churn_predictor (demo)');
+        }
+      }
+    } catch {
+      setModelsError('Failed to load models.');
+    }
+  }
+
+  setModelsLoading(false);
+};
 
   useEffect(() => { refreshModels(); }, []);
 
