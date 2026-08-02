@@ -12,7 +12,6 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// attach JWT token to every request automatically
 client.interceptors.request.use(async (config) => {
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.access_token) {
@@ -30,6 +29,17 @@ client.interceptors.response.use(
 );
 
 export default client;
+
+// ── Demo (public, no auth needed) ─────────────────────────────────────────────
+export const getDemoModel = () => client.get('/api/ingest/demo-model');
+export const getDemoDriftSummary = () => client.get('/api/drift/demo/summary');
+export const getDemoSeverity = () => client.get('/api/drift/demo/severity');
+export const getDemoSHAP = () => client.get('/api/drift/demo/shap');
+export const getDemoClusters = () => client.get('/api/drift/demo/clusters');
+export const getDemoDriftAnalysis = () => client.get('/api/drift/demo/analyze');
+export const getDemoSimilar = () => client.get('/api/drift/demo/similar');
+export const getDemoForecast = () => client.get('/api/forecast/demo/predict');
+export const getDemoReportHistory = () => client.get('/api/reports/demo/history');
 
 // ── Models ────────────────────────────────────────────────────────────────────
 export const getModels = () => client.get('/api/ingest/models');
@@ -57,3 +67,8 @@ export const generateDriftHistory = (modelId) => client.post(`/api/forecast/gene
 // ── Schema ────────────────────────────────────────────────────────────────────
 export const defineSchema = (data) => client.post('/api/schema/define', data);
 export const getSchema = (modelId) => client.get(`/api/schema/${modelId}`);
+
+// ── API Keys ──────────────────────────────────────────────────────────────────
+export const generateApiKey = (name) => client.post(`/api/keys/generate?name=${name}`);
+export const listApiKeys = () => client.get('/api/keys/list');
+export const deleteApiKey = (keyId) => client.delete(`/api/keys/${keyId}`);

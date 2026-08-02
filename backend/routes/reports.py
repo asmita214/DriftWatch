@@ -61,3 +61,34 @@ def get_report_history(model_id: str):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/demo/generate")
+def demo_report():
+    try:
+        from services.gemini_reporter import generate_report
+        return generate_report("5270bb9f-6022-4295-9ddb-97a3f14a8302", "churn_predictor")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/demo/history")
+def demo_history():
+    try:
+        from db.supabase_client import supabase
+        events = supabase.table("drift_events")\
+            .select("id, drift_type, severity_score, detected_at, status")\
+            .eq("model_id", "5270bb9f-6022-4295-9ddb-97a3f14a8302")\
+            .order("detected_at", desc=True)\
+            .execute()
+        reports = []
+        for event in events.data:
+            recipe = supabase.table("remediation_recipes")\
+                .select("report_text, retraining_recommendation, created_at")\
+                .eq("drift_event_id", event["id"])\
+                .execute()
+            reports.append({
+                **event,
+                "report": recipe.data[0] if recipe.data else None
+            })
+        return {"total_reports": len(reports), "reports": reports}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

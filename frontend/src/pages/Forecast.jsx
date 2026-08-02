@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, CloudLightning, RefreshCw, AlertCircle, TrendingUp, Play, CheckCircle } from 'lucide-react';
 import { useModel } from '../context/ModelContext';
-import { getForecast, generateDriftHistory } from '../api/client';
+import { getForecast, generateDriftHistory, getDemoForecast } from '../api/client';
 import ForecastChart from '../components/ForecastChart';
 
 const Forecast = () => {
   const { modelId } = useModel();
+  const DEMO_ID = "5270bb9f-6022-4295-9ddb-97a3f14a8302";
+  const isDemo = modelId === DEMO_ID;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
@@ -17,7 +19,7 @@ const Forecast = () => {
     if (!modelId) return;
     setLoading(true); setError(null); setNoHistory(false);
     try {
-      const res = await getForecast(modelId);
+      const res = isDemo ? await getDemoForecast() : await getForecast(modelId);
       setData(res.data);
     } catch (e) {
       const msg = e.response?.data?.detail || e.message || '';
@@ -46,11 +48,7 @@ const Forecast = () => {
     }
   };
 
-  if (!modelId) return (
-    <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 16, fontWeight: 600 }}>Select a model to view forecast.</div>
-    </div>
-  );
+  if (!modelId) return null;
 
   const forecast = Array.isArray(data?.forecast) ? data.forecast : Array.isArray(data) ? data : [];
   const trend = data?.trend || data?.trend_message || '';

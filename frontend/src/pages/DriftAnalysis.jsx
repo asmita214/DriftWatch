@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
 import { useModel } from '../context/ModelContext';
-import { getDriftAnalysis, getSHAPData, getClusters, getSimilarEvents } from '../api/client';
+import { getDriftAnalysis, getSHAPData, getClusters, getSimilarEvents, getDemoDriftAnalysis, getDemoSHAP, getDemoClusters, getDemoSimilar } from '../api/client';
 import ClusterCard from '../components/ClusterCard';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList
@@ -32,6 +32,8 @@ const SectionHeader = ({ number, title, subtitle }) => (
 
 const DriftAnalysis = () => {
   const { modelId } = useModel();
+  const DEMO_ID = "5270bb9f-6022-4295-9ddb-97a3f14a8302";
+  const isDemo = modelId === DEMO_ID;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [analysis, setAnalysis] = useState(null);
@@ -44,9 +46,11 @@ const DriftAnalysis = () => {
     setLoading(true); setError(null);
     try {
       const [a, s, c, sim] = await Promise.allSettled([
-        getDriftAnalysis(modelId), getSHAPData(modelId),
-        getClusters(modelId), getSimilarEvents(modelId),
-      ]);
+          isDemo ? getDemoDriftAnalysis() : getDriftAnalysis(modelId),
+          isDemo ? getDemoSHAP() : getSHAPData(modelId),
+          isDemo ? getDemoClusters() : getClusters(modelId),
+          isDemo ? getDemoSimilar() : getSimilarEvents(modelId),
+        ]);
       setAnalysis(a.status === 'fulfilled' ? a.value.data : null);
       setShap(s.status === 'fulfilled' ? s.value.data : null);
       setClusters(c.status === 'fulfilled' ? c.value.data : null);
@@ -57,11 +61,7 @@ const DriftAnalysis = () => {
 
   useEffect(() => { load(); }, [modelId]);
 
-  if (!modelId) return (
-    <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 16, fontWeight: 600 }}>Select a model to view drift analysis.</div>
-    </div>
-  );
+  if (!modelId) return null;
 
   const numericalDrift = analysis?.numerical_drift || {};
 const categoricalDrift = analysis?.categorical_drift || {};

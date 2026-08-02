@@ -211,3 +211,11 @@ def demo_summary():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@router.get("/demo/similar")
+def demo_similar():
+    try:
+        from services.faiss_search import find_similar_drift_events
+        drift_report = detect_drift("5270bb9f-6022-4295-9ddb-97a3f14a8302")
+        return find_similar_drift_events(drift_report)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

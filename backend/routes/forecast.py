@@ -35,3 +35,10 @@ def generate_history(model_id: str, days: int = 30, user_id: str = Depends(get_c
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@router.get("/demo/predict")
+def demo_forecast():
+    try:
+        from services.forecaster import run_forecast
+        return run_forecast("5270bb9f-6022-4295-9ddb-97a3f14a8302")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

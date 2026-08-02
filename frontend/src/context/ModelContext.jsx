@@ -16,6 +16,16 @@ export const ModelProvider = ({ children }) => {
       const res = await getModels();
       const list = Array.isArray(res.data) ? res.data : (res.data?.models || []);
       setModels(list);
+if (list.length === 0) {
+  // no models yet — add demo model to selector
+  const demoRes = await import('../api/client').then(m => m.getDemoModel());
+  const demoModel = demoRes.data?.model;
+  if (demoModel) {
+    setModels([{ ...demoModel, is_demo: true, model_name: 'churn_predictor (demo)' }]);
+    setModelId(demoModel.id);
+    setModelName('churn_predictor (demo)');
+  }
+}
       // Automatically select first model if none selected
       if (list.length > 0 && !modelId) {
         setModelId(list[0].id);

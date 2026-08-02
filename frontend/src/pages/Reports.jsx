@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, Play, AlertCircle, FileText, CheckCircle } from 'lucide-react';
 import { useModel } from '../context/ModelContext';
-import { getReportHistory, generateReport } from '../api/client';
+import { getReportHistory, generateReport, getDemoReportHistory } from '../api/client';
 import ReportViewer from '../components/ReportViewer';
 
 const Reports = () => {
   const { modelId } = useModel();
+  const DEMO_ID = "5270bb9f-6022-4295-9ddb-97a3f14a8302";
+  const isDemo = modelId === DEMO_ID;
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -17,7 +19,7 @@ const Reports = () => {
     if (!modelId) return;
     setLoading(true); setError(null);
     try {
-      const res = await getReportHistory(modelId);
+      const res = isDemo ? await getDemoReportHistory() : await getReportHistory(modelId);
       setReports(Array.isArray(res.data) ? res.data : (res.data?.reports || []));
     } catch {
       setError('Failed to load reports.');
@@ -42,11 +44,7 @@ const Reports = () => {
     }
   };
 
-  if (!modelId) return (
-    <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 16, fontWeight: 600 }}>Select a model to view reports.</div>
-    </div>
-  );
+  if (!modelId) return null;
 
   return (
     <div className="page">
